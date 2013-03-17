@@ -183,9 +183,6 @@ class arXiv:
         if category:
             q.append("cat:{0}".format(category))
 
-        if query == None and not period:
-            period = 0
-
         if period != None:
             period = str(period).lower()
             if period in YESTERDAY:
