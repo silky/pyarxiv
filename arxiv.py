@@ -178,7 +178,9 @@ class arXiv:
             q.append(query)
         
         if author:
-            q.append("au:{0}".format(author))
+            if not isinstance(author, list):
+                author = [author]
+            q.append("au:({0})".format(" OR ".join(author)))
 
         if category:
             q.append("cat:{0}".format(category))
