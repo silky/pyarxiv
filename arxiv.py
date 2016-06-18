@@ -12,10 +12,12 @@ LAST_WEEK = ["last week", "lastweek", "lweek", "lw", "w"]
 LAST_MONTH = ["last month", "lastmonth", "lmonth", "lm", "m"]
 
 class arXiv:
-    def __init__(self, default_categories=None, default_limit=100, inc_abstract=False, use_bibdesk=False):
+    def __init__(self, default_categories=None, default_limit=100,
+            inc_abstract=False, use_bibdesk=False, f_file=None):
         if not default_categories:
             default_categories = []
         
+        self.f_file = f_file
         self.use_bibdesk = use_bibdesk
         self.inc_abstract = inc_abstract
         self.default_limit = default_limit
@@ -33,7 +35,10 @@ class arXiv:
 
     def parse_date(self, t):
         '''Parses a date from arXiv'''
-        return time.strptime(t, "%Y-%m-%dT%H:%M:%SZ")
+        try:
+            return time.strptime(t, "%Y-%m-%dT%H:%M:%SZ")
+        except:
+            return "n/a"
 
     def format_bibtex(self, article):
         '''Format a parsed article into BibTeX'''
@@ -41,6 +46,9 @@ class arXiv:
             'title': bibtex.wrap(self.clean(article['title'])),
             'author': article['authors'],
             'note': "arXiv:{0}".format(article['id']),
+            # yyyy.mm.dd
+            'timestamp': dt.now().strftime("%Y.%m.%d"),
+            "url": article["url"],
         }
 
         if self.inc_abstract:
@@ -60,11 +68,17 @@ class arXiv:
 
         # If there is no reference, then use the arXiv data instead
         else:
-            data.update({
-                'year': article['published'].tm_year,
-                'month': article['published'].tm_mon,
-                'journal': article['journal_ref'],
-            })
+            try:
+                data.update({
+                    'year': article['published'].tm_year,
+                    'month': article['published'].tm_mon,
+                    'journal': article['journal_ref'],
+                })
+            except:
+                pass
+
+        if self.f_file:
+            data.update({ 'file': '%(pdf)s:%(pdf)s:PDF' % {'pdf': self.f_file } })
 
         return bibtex.format(data)
 
@@ -231,7 +245,9 @@ class arXiv:
             authors = [author.get('name', '') for author in entry.get('authors', [])]
             authors = ' and '.join(authors)
 
-            categories = ', '.join([t['term'] for t in entry.tags])
+            categories = ""
+            if entry.get("tags"):
+                categories = ', '.join([t['term'] for t in entry.tags])
 
             article = {
                 'id': a_id,
@@ -241,8 +257,8 @@ class arXiv:
                 'abstract':         entry.summary.encode('utf8'),
                 'comment':          entry.get('arxiv_comment', ''),
                 'updated':          self.parse_date(entry.updated),
-                'published':        self.parse_date(entry.published),
-                'primary':          entry.arxiv_primary_category['term'],
+                'published':        self.parse_date(entry.get("published", "")),
+                'primary':          entry.get("arxiv_primary_category", {"term": ""})['term'],
                 'journal_ref':      entry.get('arxiv_journal_ref', default_ref),
             }
 
